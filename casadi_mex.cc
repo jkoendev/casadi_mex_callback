@@ -5,11 +5,19 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <map>
 
 #include "mex.h"
 #include "matrix.h"
 
 #include "casadi/casadi.hpp"
+
+static std::map<int, casadi::SX> symbolics;
+static int num_symbolics = 0;
+
+bool isFunctionHandle(const mxArray* in_arr) {
+  return mxIsClass(in_arr,"function_handle");
+}
 
 void display(const std::string str)
 {
@@ -29,7 +37,7 @@ void mexAssert(bool cond, std::string str)
   }
 }
 
-std::string to_string(const mxArray* in_arr)
+std::string mxToString(const mxArray* in_arr)
 {
   mexAssert(mxIsChar(in_arr), "Argument must be string.");
 
@@ -39,7 +47,25 @@ std::string to_string(const mxArray* in_arr)
   return std::string(fcn_name);
 }
 
-std::vector<double> to_numeric_vec(const mxArray* in_arr)
+// const std::string& callCallbackFunction(const std::string& sym_id)
+// {
+//   mxArray* in_arr = mxCreateString(sym_id.c_str());
+//
+//   mxArray* inputs[1];
+//   inputs[0] = in_arr;
+//
+//   int status;
+//   mxArray* outputs[];
+//   status = mexCallMATLAB(1, outputs, 1, inputs, "mex_callback");
+//
+//   std::string output_id = mxToString(outputs[0])
+//
+//   // free allocated memory
+//   mxDestroyArray(in_arr);
+//   return output_id;
+// }
+
+std::vector<double> mxToNumericVec(const mxArray* in_arr)
 {
   mexAssert(mxIsDouble(in_arr) && !mxIsComplex(in_arr), "Invalid convertion from mx type to vector.");
 
@@ -67,34 +93,66 @@ void mexFunction(int nlhs, mxArray *plhs[],
   mexAssert(nrhs >=  1, "Not enough input arguments.");
 
   // First input is always the function identifier as string
-  std::string fcn_name = to_string(prhs[0]);
+  std::string fcn_name = mxToString(prhs[0]);
 
   if (fcn_name.compare("create") == 0) {
 
     // call args are:
     //  prhs[0] "create" : string
-    //  prhs[1] name : string
+    //  prhs[1] id : string
     //  prhs[2] shape : numeric
 
     mexAssert(nrhs >= 3, "Not enough input arguments.");
 
-    std::string name = to_string(prhs[1]);
-    std::vector<double> shape = to_numeric_vec(prhs[2]);
+    std::string id = mxToString(prhs[1]);
+    std::vector<double> shape = mxToNumericVec(prhs[2]);
 
-    mexAssert(shape.size() == 2, "Shape must be of length 2.");
-    casadi::SX var = casadi::SX::sym(name, (int)shape[0], (int)shape[1]);
+    mxAssert(shape.size() == 2, "Shape must be of length 2.");
 
+    // create symbolic and insert to map of symbolics, remember index
+    casadi::SX var = casadi::SX::sym(id, (int)shape[0], (int)shape[1]);
+    symbolics[num_symbolics] = var;
+    int idx = num_symbolics;
+    num_symbolics++;
+
+    // return index of symbolic
+    mexAssert(nlhs >= 1, "Output argument for index required");
+    plhs[0] = mxCreateDoubleScalar((double)idx);
+
+  } else if (fcn_name.compare("cos") == 0)
+  {
+    // call args are:
+    //  prhs[0] "cos" : string
+    //  prhs[1] idx : int
+    mexAssert(nrhs >= 2, "Not enough input arguments.");
+
+    int idx = (int)mxGetScalar(prhs[1]);
+    casadi::SX var = symbolics[idx];
+
+    casadi::SX new_symbol = casadi::SX::cos(var);
+    symbolics[num_symbolics] = new_symbol;
+    int new_idx = num_symbolics;
+    num_symbolics++;
+
+    // return index of symbolic
+    mexAssert(nlhs >= 1, "Output argument for index required");
+    plhs[0] = mxCreateDoubleScalar((double)new_idx);
+
+  } else if (fcn_name.compare("disp") == 0)
+  {
+    mexAssert(nrhs >= 2, "Not enough input arguments.");
+
+    int idx = (int)mxGetScalar(prhs[1]);
+    casadi::SX var = symbolics[idx];
     std::stringstream out_str;
-
-    out_str << name << std::endl;
     out_str << var << std::endl;
-
     display(out_str.str());
 
-
-  } else if (fcn_name.compare("call") == 0) {
-
-  } else {
+  } else
+  {
+    // call args are:
+    //  prhs[0] "disp" : string
+    //  prhs[1] idx : int
     mexError("Command not recognized.");
   }
 }
