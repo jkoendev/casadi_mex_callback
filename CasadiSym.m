@@ -25,11 +25,6 @@ classdef CasadiSym < handle
       end
       self.idx = id;
     end
-    
-    function b = loadobj(a)
-      b = CasadiSym(a.idx);
-    end
-    
 
     function disp(self)
       casadi_mex('disp', self.idx);
