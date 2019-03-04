@@ -16,7 +16,7 @@ make
 
 Run ```testCasadiMex.m```in MATLAB.
 
-Visit (https://openocl.org)[https://openocl.org] for more information.
+Visit [https://openocl.org](https://openocl.org) for more information.
 
 MIT License  
 Copyright 2019 Jonas Koenemann  
