@@ -55,7 +55,7 @@ std::vector<double> mxToNumericVec(const mxArray* in_arr)
   std::vector<double> vec(nv);
 
   double* data = mxGetPr(in_arr);
-  for(unsigned int i=0; i<nv; i++)
+  for(int i=0; i<nv; i++)
   {
     vec[i] = *data++;
   }

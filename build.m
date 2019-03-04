@@ -1,1 +1,0 @@
-mex casadi_mex.cc -std=c++11 -I../../Software/casadi-osx-matlabR2014b-v3.3.0/include/
