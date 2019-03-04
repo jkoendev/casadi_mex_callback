@@ -47,24 +47,6 @@ std::string mxToString(const mxArray* in_arr)
   return std::string(fcn_name);
 }
 
-// const std::string& callCallbackFunction(const std::string& sym_id)
-// {
-//   mxArray* in_arr = mxCreateString(sym_id.c_str());
-//
-//   mxArray* inputs[1];
-//   inputs[0] = in_arr;
-//
-//   int status;
-//   mxArray* outputs[];
-//   status = mexCallMATLAB(1, outputs, 1, inputs, "mex_callback");
-//
-//   std::string output_id = mxToString(outputs[0])
-//
-//   // free allocated memory
-//   mxDestroyArray(in_arr);
-//   return output_id;
-// }
-
 std::vector<double> mxToNumericVec(const mxArray* in_arr)
 {
   mexAssert(mxIsDouble(in_arr) && !mxIsComplex(in_arr), "Invalid convertion from mx type to vector.");
@@ -78,6 +60,35 @@ std::vector<double> mxToNumericVec(const mxArray* in_arr)
     vec[i] = *data++;
   }
   return vec;
+}
+
+mxArray* callCallbackFunction(const mxArray* fcn_handle)
+{
+  int status;
+
+  mexAssert(isFunctionHandle(fcn_handle), "No function handle given.");
+
+  // create symbolic object of class CasadiSym
+  mxArray* idx = mxCreateDoubleScalar((double)num_symbolics);
+  casadi::SX var = casadi::SX::sym("vv", 5, 5);
+  symbolics[num_symbolics] = var;
+  num_symbolics++;
+
+  mxArray* fh = mxDuplicateArray(fcn_handle);
+
+  mxArray* inputs[2];
+  inputs[0] = fh;
+  inputs[1] = idx;
+
+  mxArray* outputs[1];
+  status = mexCallMATLAB(1, outputs, 2, inputs, "feval");
+  mexAssert(status==0, "Error in calling function handle.");
+
+  // Free dynamically allocated memory
+  mxDestroyArray(fh);
+  mxDestroyArray(idx);
+
+  return outputs[0];
 }
 
 // Main entry point of mex program
@@ -101,7 +112,6 @@ void mexFunction(int nlhs, mxArray *plhs[],
     //  prhs[0] "create" : string
     //  prhs[1] id : string
     //  prhs[2] shape : numeric
-
     mexAssert(nrhs >= 3, "Not enough input arguments.");
 
     std::string id = mxToString(prhs[1]);
@@ -119,7 +129,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
     mexAssert(nlhs >= 1, "Output argument for index required");
     plhs[0] = mxCreateDoubleScalar((double)idx);
 
-  } else if (fcn_name.compare("cos") == 0)
+  }
+  else if (fcn_name.compare("cos") == 0)
   {
     // call args are:
     //  prhs[0] "cos" : string
@@ -138,8 +149,12 @@ void mexFunction(int nlhs, mxArray *plhs[],
     mexAssert(nlhs >= 1, "Output argument for index required");
     plhs[0] = mxCreateDoubleScalar((double)new_idx);
 
-  } else if (fcn_name.compare("disp") == 0)
+  }
+  else if (fcn_name.compare("disp") == 0)
   {
+    // call args are:
+    //  prhs[0] "disp" : string
+    //  prhs[1] idx : int
     mexAssert(nrhs >= 2, "Not enough input arguments.");
 
     int idx = (int)mxGetScalar(prhs[1]);
@@ -148,7 +163,19 @@ void mexFunction(int nlhs, mxArray *plhs[],
     out_str << var << std::endl;
     display(out_str.str());
 
-  } else
+  }
+  else if (fcn_name.compare("call") == 0)
+  {
+    // call args are:
+    //  prhs[0] "disp" : string
+    //  prhs[1] fh : function handle object
+    mexAssert(nrhs >= 2, "Not enough input arguments.");
+
+
+    mxArray* idx = callCallbackFunction(prhs[1]);
+    plhs[0] = idx;
+  }
+  else
   {
     // call args are:
     //  prhs[0] "disp" : string

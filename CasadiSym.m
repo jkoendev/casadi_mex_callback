@@ -4,6 +4,20 @@ classdef CasadiSym < handle
     idx
   end
 
+  methods (Static)
+    function r = call(fh)
+      
+      function r_idx = fh_wrapper(idx)
+        obj = CasadiSym(idx);
+        r = fh(obj);
+        r_idx = r.idx;
+      end
+      
+      r_idx = casadi_mex('call', @fh_wrapper);
+      r = CasadiSym(r_idx);
+    end
+  end
+
   methods
     function self = CasadiSym(id, shape)
       if nargin == 2
@@ -11,6 +25,11 @@ classdef CasadiSym < handle
       end
       self.idx = id;
     end
+    
+    function b = loadobj(a)
+      b = CasadiSym(a.idx);
+    end
+    
 
     function disp(self)
       casadi_mex('disp', self.idx);
